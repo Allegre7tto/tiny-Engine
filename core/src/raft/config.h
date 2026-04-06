@@ -1,7 +1,5 @@
 #pragma once
 
-#include "common/types.h"
-
 #include <chrono>
 #include <string>
 #include <vector>
@@ -16,7 +14,7 @@ inline constexpr auto kElectionTimeoutMax = std::chrono::milliseconds(700);
 
 // ─── Node configuration ───────────────────────────────────────────────────────
 struct RaftConfig {
-    uint64                   id;          // 0-based index into peer_addrs
+    unsigned long long       id;          // 0-based index into peer_addrs
     std::vector<std::string> peer_addrs;  // gRPC addresses for ALL nodes (including self)
     std::string              data_dir;    // directory for WAL + snapshot files
 };

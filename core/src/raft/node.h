@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common/types.h"
 #include "raft/raft.h"
 #include "raft/config.h"
 
@@ -24,7 +23,7 @@ class RaftNode final : public ::engine::raft::v1::RaftInternal::Service {
 public:
     RaftNode(const RaftConfig&             cfg,
              std::unique_ptr<Storage>      storage,
-             std::function<void(ApplyMsg)> apply_cb);
+             std::function<void(ApplyMsg)> on_commit);
 
     ~RaftNode();
 
@@ -32,12 +31,13 @@ public:
     RaftNode& operator=(const RaftNode&) = delete;
 
     // ── Public Raft API ───────────────────────────────────────────────────────
-    Status Start(const std::vector<byte>& data, uint64& out_index, uint64& out_term);
-    bool   IsLeader() const;
-    uint64 Term()     const;
-    void   TakeSnapshot(uint64 index, const std::vector<byte>& snapshot);
-    bool   CondInstallSnapshot(uint64 last_term, uint64 last_index,
-                                const std::vector<byte>& snapshot);
+    Status Start(const std::vector<std::byte>& data,
+                 unsigned long long& out_index, unsigned long long& out_term);
+    bool                 IsLeader() const;
+    unsigned long long   Term()     const;
+    void TakeSnapshot(unsigned long long index, const std::vector<std::byte>& snapshot);
+    bool CondInstallSnapshot(unsigned long long last_term, unsigned long long last_index,
+                             const std::vector<std::byte>& snapshot);
 
     // ── gRPC service (RaftInternal) ───────────────────────────────────────────
     grpc::Status RequestVote(grpc::ServerContext*,

@@ -23,7 +23,7 @@ coordinator 拥有全部业务状态。崩溃恢复通过 LoadSnapshot + Subscri
 proto/                       → raft.proto（节点间）、log.proto（core↔coordinator）、coordinator.proto（对外）
 core/src/raft/               → Raft 核心：状态机、WAL、RaftNode
 core/src/server/             → RaftLogService + GrpcServer
-core/src/common/             → 类型别名 (types.h)、错误码 (status.h)、编码工具 (encoding.h)
+core/src/common/             → 错误码 (status.h)、编码工具 (encoding.h)
 core/tests/                  → C++ 单元测试
 core/CMakeLists.txt           → C++ 构建脚本
 core/conanfile.txt            → C++ 依赖声明（Conan 2）
@@ -37,7 +37,7 @@ coordinator/                 → Java Quarkus 项目
 
 - 构建系统：CMake + Conan 2（构建目录在 `core/build/`）
 - 标准：C++20
-- 类型：使用 `types.h` 中的别名（`int64` / `uint64` / `size` / `byte`），不用 `int64_t` / `uint64_t` / `size_t`
+- 类型：`int` / `unsigned int` / `long long` / `unsigned long long`；原始字节用 `std::byte` 与 `std::span`；Raft 对等端下标用 `unsigned int`；index/term 用 `unsigned long long`
 - `float` 和 `double` 保持原样，不做别名
 - 源文件后缀：`.cpp`（不用 `.cc`）
 - Proto 生成的头文件：`raft.pb.h` / `log.grpc.pb.h` 等
@@ -72,7 +72,7 @@ docker compose up   # 3 core 节点 + 1 coordinator
 ## 注意事项
 
 - 修改 proto 后两侧都要重新构建
-- core 的 apply callback 只向 committed queue 推送，不做任何解析
+- core 的 on_commit callback 只向 committed queue 推送，不做任何解析
 - coordinator 的 StateMachineDriver 是唯一的 apply 入口，单线程顺序执行
 - Watch 通过 KvStore listener 机制通知，不走独立的事件流
 - Lease 的 Grant/Revoke 通过 Raft 日志持久化，KeepAlive 是 leader-local（不复制）

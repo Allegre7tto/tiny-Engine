@@ -7,6 +7,7 @@
 #include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <span>
 
 namespace engine::raft {
 
@@ -45,11 +46,12 @@ Status FileStorage::WriteFile(const std::string& path, const std::string& payloa
     std::ofstream f(tmp, std::ios::binary | std::ios::trunc);
     if (!f) return Status::IOError("open " + tmp + ": " + std::strerror(errno));
 
-    byte header[8];
-    uint32 len = static_cast<uint32>(payload.size());
-    uint32 crc = Crc32(payload);
-    EncodeUint32(header,     len);
-    EncodeUint32(header + 4, crc);
+    std::byte header[8];
+    std::span<std::byte, 8> hdr{header};
+    unsigned int len = static_cast<unsigned int>(payload.size());
+    unsigned int crc = Crc32(payload);
+    EncodeUint32(hdr.first<4>(), len);
+    EncodeUint32(hdr.last<4>(), crc);
 
     f.write(reinterpret_cast<const char*>(header), 8);
     f.write(payload.data(), static_cast<std::streamsize>(payload.size()));
@@ -67,15 +69,16 @@ bool FileStorage::ReadFile(const std::string& path, std::string& payload) {
     std::ifstream f(path, std::ios::binary);
     if (!f) return false;
 
-    byte header[8];
+    std::byte header[8];
     f.read(reinterpret_cast<char*>(header), 8);
     if (f.gcount() != 8) return false;
 
-    uint32 len = DecodeUint32(header);
-    uint32 crc = DecodeUint32(header + 4);
+    std::span<const std::byte, 8> hdr{header};
+    unsigned int len = DecodeUint32(hdr.first<4>());
+    unsigned int crc = DecodeUint32(hdr.last<4>());
     payload.resize(len);
     f.read(payload.data(), len);
-    if (static_cast<uint32>(f.gcount()) != len) return false;
+    if (static_cast<unsigned int>(f.gcount()) != len) return false;
     return Crc32(payload) == crc;
 }
 
@@ -101,7 +104,9 @@ Status FileStorage::SaveSnapshot(const HardState& state, const SnapshotData& sna
     ::engine::raft::v1::InstallSnapshotReq proto;
     proto.set_last_index(snap.last_index);
     proto.set_last_term(snap.last_term);
-    proto.set_data(snap.data.data(), snap.data.size());
+    proto.set_data(
+        reinterpret_cast<const char*>(snap.data.data()),
+        snap.data.size());
 
     std::string payload;
     if (!proto.SerializeToString(&payload))
@@ -117,7 +122,9 @@ bool FileStorage::LoadSnapshot(SnapshotData& out) {
     out.last_index = proto.last_index();
     out.last_term  = proto.last_term();
     const auto& d  = proto.data();
-    out.data.assign(d.begin(), d.end());
+    out.data.assign(
+        reinterpret_cast<const std::byte*>(d.data()),
+        reinterpret_cast<const std::byte*>(d.data() + d.size()));
     return true;
 }
 

@@ -31,7 +31,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    uint64_t    node_id  = std::stoul(argv[1]);
+    unsigned long long node_id = std::stoull(argv[1]);
     std::string data_dir = argv[2];
 
     std::vector<std::string> peer_addrs;
@@ -60,7 +60,7 @@ int main(int argc, char* argv[]) {
     auto storage = std::make_unique<engine::raft::FileStorage>(data_dir);
 
     // ── Apply callback: committed entries → RaftLogService → Java ─────────────
-    auto apply_cb = [raft_log_ptr](engine::raft::ApplyMsg msg) {
+    auto on_commit = [raft_log_ptr](engine::raft::ApplyMsg msg) {
         std::visit([raft_log_ptr](const auto& m) {
             using T = std::decay_t<decltype(m)>;
             if constexpr (std::is_same_v<T, engine::raft::ApplyCommand>) {
@@ -71,7 +71,7 @@ int main(int argc, char* argv[]) {
 
     // ── RaftNode ──────────────────────────────────────────────────────────────
     auto raft_node = std::make_unique<engine::raft::RaftNode>(
-        cfg, std::move(storage), std::move(apply_cb));
+        cfg, std::move(storage), std::move(on_commit));
 
     raft_log_svc->SetNode(raft_node.get());
 

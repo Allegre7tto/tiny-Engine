@@ -1,16 +1,17 @@
 #pragma once
 
-#include "common/types.h"
 #include "raft/node.h"
 
 #include "log.grpc.pb.h"
 
 #include <grpcpp/grpcpp.h>
 #include <condition_variable>
+#include <cstddef>
 #include <deque>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <vector>
 
 namespace engine::server {
 
@@ -52,7 +53,8 @@ public:
                         ::engine::log::v1::StatusResp*)            override;
 
     // Called by the Raft apply callback to enqueue committed entries.
-    void OnCommitted(uint64 index, uint64 term, std::vector<byte> data);
+    void OnCommitted(unsigned long long index, unsigned long long term,
+                     std::vector<std::byte> data);
 
     void Shutdown();
 

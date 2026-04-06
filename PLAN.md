@@ -190,9 +190,8 @@ Engine/
 │   │   ├── server/
 │   │   │   └── server.h / server.cpp  # RaftLogService + GrpcServer
 │   │   ├── common/
-│   │   │   ├── types.h                # 类型别名（int64 / uint64 / size / byte）
 │   │   │   ├── status.h               # 错误码定义
-│   │   │   └── encoding.h             # CRC32 / 编解码工具
+│   │   │   └── encoding.h             # CRC32 / 小端编解码（std::byte + std::span）
 │   │   └── main.cpp                   # C++ 入口
 │   └── tests/
 │       └── raft_test.cpp              # C++ 单元测试
@@ -224,14 +223,10 @@ Engine/
 
 ## C++ 类型约定
 
-所有 C++ 文件统一 `#include "common/types.h"`，使用以下别名：
-
-| 别名 | 原始类型 |
-|---|---|
-| `int8` `int16` `int32` `int64` | `std::int8_t` … `std::int64_t` |
-| `uint8` `uint16` `uint32` `uint64` | `std::uint8_t` … `std::uint64_t` |
-| `size` | `std::size_t` |
-| `byte` | `std::uint8_t` |
+- **整数**：优先使用 `int`、`unsigned int`、`long long`、`unsigned long long`（与常见平台 ABI 一致），不再使用 `<cstdint>` 固定宽度别名。
+- **原始字节缓冲**：使用 `std::byte`；长度与视图用 `std::span<const std::byte>`（如 WAL 帧的 CRC、编解码）。
+- **Raft 节点下标 / 对等端数量**：使用 `int`。
+- **日志 index / term / 配置 id**：使用 `unsigned long long`。
 
 ---
 

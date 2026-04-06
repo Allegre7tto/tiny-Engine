@@ -1,6 +1,5 @@
 #pragma once
 
-#include "common/types.h"
 #include "raft/config.h"
 #include "raft/log.h"
 #include "raft/storage.h"
@@ -9,6 +8,7 @@
 #include "raft.pb.h"
 
 #include <chrono>
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <optional>
@@ -23,38 +23,38 @@ using TimePoint = Clock::time_point;
 
 // ─── Apply messages ───────────────────────────────────────────────────────────
 struct ApplyCommand {
-    std::vector<byte> data;
-    uint64            index = 0;
+    std::vector<std::byte> data;
+    unsigned long long     index = 0;
 };
 
 struct ApplySnapshot {
-    std::vector<byte> data;
-    uint64            term  = 0;
-    uint64            index = 0;
+    std::vector<std::byte> data;
+    unsigned long long     term  = 0;
+    unsigned long long     index = 0;
 };
 
 using ApplyMsg = std::variant<ApplyCommand, ApplySnapshot>;
 
 // ─── Outbound RPC tasks produced by Raft::Tick() ─────────────────────────────
 struct VoteTask {
-    size                             peer;
+    unsigned int                       peer;
     ::engine::raft::v1::RequestVoteReq req;
-    uint64                           election_term;
+    unsigned long long                 election_term;
 };
 
 struct AppendTask {
-    size                                peer;
-    ::engine::raft::v1::AppendEntriesReq req;
-    uint64                              sent_term;
-    uint64                              prev_index;
-    size                                sent_num;
+    unsigned int                          peer;
+    ::engine::raft::v1::AppendEntriesReq  req;
+    unsigned long long                  sent_term;
+    unsigned long long                  prev_index;
+    unsigned int                          sent_num;
 };
 
 struct SnapshotTask {
-    size                                  peer;
+    unsigned int                           peer;
     ::engine::raft::v1::InstallSnapshotReq req;
-    uint64                                sent_term;
-    uint64                                last_index;
+    unsigned long long                   sent_term;
+    unsigned long long                   last_index;
 };
 
 using RaftTask = std::variant<VoteTask, AppendTask, SnapshotTask>;
@@ -72,75 +72,84 @@ class Raft {
 public:
     Raft(const RaftConfig&             cfg,
          std::unique_ptr<Storage>      storage,
-         std::function<void(ApplyMsg)> apply_cb);
+         std::function<void(ApplyMsg)> on_commit);
 
     std::vector<RaftTask> Tick();
 
-    Status Start(const std::vector<byte>& data, uint64& out_index, uint64& out_term);
+    Status Start(const std::vector<std::byte>& data,
+                 unsigned long long& out_index, unsigned long long& out_term);
 
-    void TakeSnapshot(uint64 index, const std::vector<byte>& snapshot);
-    bool CondInstallSnapshot(uint64 last_term, uint64 last_index,
-                             const std::vector<byte>& snapshot);
+    void TakeSnapshot(unsigned long long index, const std::vector<std::byte>& snapshot);
+    bool CondInstallSnapshot(unsigned long long last_term, unsigned long long last_index,
+                             const std::vector<std::byte>& snapshot);
 
     ::engine::raft::v1::RequestVoteResp     OnRequestVote    (const ::engine::raft::v1::RequestVoteReq&);
     ::engine::raft::v1::AppendEntriesResp   OnAppendEntries  (const ::engine::raft::v1::AppendEntriesReq&);
     ::engine::raft::v1::InstallSnapshotResp OnInstallSnapshot(const ::engine::raft::v1::InstallSnapshotReq&);
 
-    void OnVoteReply    (uint64 election_term, size peer,
+    void OnVoteReply    (unsigned long long election_term, unsigned int peer,
                          const ::engine::raft::v1::RequestVoteResp&);
-    void OnAppendReply  (uint64 sent_term, size peer, uint64 prev_index, size sent_num,
+    void OnAppendReply  (unsigned long long sent_term, unsigned int peer,
+                         unsigned long long prev_index, unsigned int sent_num,
                          const ::engine::raft::v1::AppendEntriesResp&);
-    void OnSnapshotReply(uint64 sent_term, size peer, uint64 last_index,
+    void OnSnapshotReply(unsigned long long sent_term, unsigned int peer,
+                         unsigned long long last_index,
                          const ::engine::raft::v1::InstallSnapshotResp&);
 
-    bool   IsLeader()   const { return role_ == Role::Leader; }
-    uint64 Term()       const { return term_; }
-    size   Me()         const { return me_; }
-    size   PeerCount()  const { return peer_count_; }
+    bool                 IsLeader()   const { return role_ == Role::Leader; }
+    unsigned long long   Term()       const { return term_; }
+    unsigned int         Me()         const { return me_; }
+    unsigned int         PeerCount()  const { return peer_count_; }
 
 private:
     static std::chrono::milliseconds RandElectionTimeout();
 
-    void   StepDown(uint64 term);
-    void   StepUp();
-    uint64 BeginElection();
-    bool   HasQuorum() const;
+    void               StepDown(unsigned long long term);
+    void               StepUp();
+    unsigned long long BeginElection();
+    bool               HasQuorum() const;
 
     void AdvanceCommit();
     void ApplyReady();
 
-    AppendTask   BuildAppendTask(size peer);
-    SnapshotTask BuildSnapshotTask(size peer);
+    AppendTask   BuildAppendTask(unsigned int peer);
+    SnapshotTask BuildSnapshotTask(unsigned int peer);
 
     void Persist();
     void PersistWithSnapshot();
     void Restore(const HardState& hs);
 
-    uint64 LastIndex() const { return base_ + static_cast<uint64>(log_.size()) - 1; }
-    uint64 LastTerm()  const { return log_.back().term(); }
-    uint64 LogSize()   const { return static_cast<uint64>(log_.size()); }
-    size   LogOffset(uint64 abs_idx) const { return static_cast<size>(abs_idx - base_); }
+    unsigned long long LastIndex() const {
+        return base_ + static_cast<unsigned long long>(log_.size()) - 1;
+    }
+    unsigned long long LastTerm()  const { return log_.back().term(); }
+    unsigned long long LogSize()   const {
+        return static_cast<unsigned long long>(log_.size());
+    }
+    unsigned int LogOffset(unsigned long long abs_idx) const {
+        return static_cast<unsigned int>(abs_idx - base_);
+    }
 
-    size                          me_;
-    size                          peer_count_;
+    unsigned int                  me_;
+    unsigned int                  peer_count_;
     std::unique_ptr<Storage>      storage_;
-    std::function<void(ApplyMsg)> apply_cb_;
+    std::function<void(ApplyMsg)> on_commit_;
 
     Role                          role_    = Role::Follower;
-    uint64                        term_    = 0;
-    std::optional<size>           voted_;
-    std::unordered_set<size>      granted_;
+    unsigned long long            term_    = 0;
+    std::optional<unsigned int>   voted_;
+    std::unordered_set<unsigned int> granted_;
     TimePoint                     deadline_;
     TimePoint                     heartbeat_;
 
     std::vector<LogEntry>         log_;
-    uint64                        base_    = 0;
-    uint64                        anchor_  = 0;
-    uint64                        commit_  = 0;
-    uint64                        applied_ = 0;
-    std::vector<uint64>           next_;
-    std::vector<uint64>           acked_;
-    std::vector<byte>             snap_;
+    unsigned long long            base_    = 0;
+    unsigned long long            anchor_  = 0;
+    unsigned long long            commit_  = 0;
+    unsigned long long            applied_ = 0;
+    std::vector<unsigned long long> next_;
+    std::vector<unsigned long long> acked_;
+    std::vector<std::byte>        snap_;
 };
 
 } // namespace engine::raft

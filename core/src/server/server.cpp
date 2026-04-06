@@ -10,11 +10,14 @@ RaftLogServiceImpl::RaftLogServiceImpl() : node_(nullptr) {}
 
 void RaftLogServiceImpl::SetNode(raft::RaftNode* node) { node_ = node; }
 
-void RaftLogServiceImpl::OnCommitted(uint64 index, uint64 term, std::vector<byte> data) {
+void RaftLogServiceImpl::OnCommitted(unsigned long long index, unsigned long long term,
+                                     std::vector<std::byte> data) {
     ::engine::log::v1::CommittedEntry entry;
     entry.set_index(index);
     entry.set_term(term);
-    entry.set_data(data.data(), data.size());
+    entry.set_data(
+        reinterpret_cast<const char*>(data.data()),
+        data.size());
 
     std::lock_guard lock(mu_);
     committed_queue_.push_back(std::move(entry));
@@ -35,8 +38,10 @@ grpc::Status RaftLogServiceImpl::Propose(
         return grpc::Status(grpc::StatusCode::UNAVAILABLE, "not leader");
 
     const auto& d = req->data();
-    std::vector<byte> data(d.begin(), d.end());
-    uint64 index, term;
+    std::vector<std::byte> data(
+        reinterpret_cast<const std::byte*>(d.data()),
+        reinterpret_cast<const std::byte*>(d.data() + d.size()));
+    unsigned long long index, term;
     auto s = node_->Start(data, index, term);
     if (!s.ok())
         return grpc::Status(grpc::StatusCode::UNAVAILABLE, s.message());
@@ -75,15 +80,18 @@ grpc::Status RaftLogServiceImpl::SaveSnapshot(
         grpc::ServerContext*,
         grpc::ServerReader<::engine::log::v1::SnapshotChunk>* reader,
         ::engine::log::v1::SaveSnapshotResp* resp) {
-    std::vector<byte> snapshot_data;
-    uint64 last_index = 0, last_term = 0;
+    std::vector<std::byte> snapshot_data;
+    unsigned long long last_index = 0, last_term = 0;
 
     ::engine::log::v1::SnapshotChunk chunk;
     while (reader->Read(&chunk)) {
         last_index = chunk.last_index();
         last_term  = chunk.last_term();
         const auto& d = chunk.data();
-        snapshot_data.insert(snapshot_data.end(), d.begin(), d.end());
+        snapshot_data.insert(
+            snapshot_data.end(),
+            reinterpret_cast<const std::byte*>(d.data()),
+            reinterpret_cast<const std::byte*>(d.data() + d.size()));
         if (chunk.done()) break;
     }
 

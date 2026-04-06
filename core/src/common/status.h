@@ -1,7 +1,5 @@
 #pragma once
 
-#include "common/types.h"
-
 #include <string>
 #include <utility>
 
@@ -25,7 +23,7 @@ public:
     Status() = default;
 
     static Status OK()                            { return Status{StatusCode::kOk, ""}; }
-    static Status NotLeader(uint64 leader_hint = 0) {
+    static Status NotLeader(unsigned long long leader_hint = 0) {
         Status s{StatusCode::kNotLeader, "not leader"};
         s.leader_hint_ = leader_hint;
         return s;
@@ -44,7 +42,7 @@ public:
 
     StatusCode code()           const { return code_; }
     const std::string& message() const { return msg_; }
-    uint64 leader_hint()         const { return leader_hint_; }
+    unsigned long long leader_hint() const { return leader_hint_; }
 
     std::string ToString() const {
         if (ok()) return "OK";
@@ -54,9 +52,9 @@ public:
 private:
     Status(StatusCode c, std::string m) : code_(c), msg_(std::move(m)) {}
 
-    StatusCode  code_        = StatusCode::kOk;
-    std::string msg_;
-    uint64      leader_hint_ = 0;
+    StatusCode           code_        = StatusCode::kOk;
+    std::string          msg_;
+    unsigned long long   leader_hint_ = 0;
 };
 
 } // namespace engine

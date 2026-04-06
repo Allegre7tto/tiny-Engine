@@ -1,9 +1,9 @@
 #pragma once
 
-#include "common/types.h"
 #include "raft/log.h"
 #include "common/status.h"
 
+#include <cstddef>
 #include <string>
 #include <vector>
 
@@ -11,17 +11,17 @@ namespace engine::raft {
 
 // ─── Snapshot data bundle ─────────────────────────────────────────────────────
 struct SnapshotData {
-    uint64            last_index = 0;
-    uint64            last_term  = 0;
-    std::vector<byte> data;
+    unsigned long long           last_index = 0;
+    unsigned long long           last_term  = 0;
+    std::vector<std::byte>       data;
 };
 
 // ─── Persistent hard-state ────────────────────────────────────────────────────
 struct HardState {
-    uint64 term   = 0;
-    uint64 voted  = 0;  // 0 = no vote; otherwise (peer_id + 1)
-    uint64 base   = 0;
-    uint64 anchor = 0;
+    unsigned long long   term   = 0;
+    unsigned long long   voted  = 0;  // 0 = no vote; otherwise (peer_id + 1)
+    unsigned long long   base   = 0;
+    unsigned long long   anchor = 0;
     std::vector<LogEntry> log;
 };
 

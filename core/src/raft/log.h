@@ -1,7 +1,5 @@
 #pragma once
 
-#include "common/types.h"
-
 #include <vector>
 
 namespace engine::raft::v1 { class LogEntry; }
@@ -16,8 +14,8 @@ namespace engine::raft {
 using LogEntry = ::engine::raft::v1::LogEntry;
 
 struct LogState {
-    uint64               base   = 0;  // absolute index of log_[0] (snapshot boundary)
-    uint64               anchor = 0;  // term at index base
+    unsigned long long    base   = 0;  // absolute index of log_[0] (snapshot boundary)
+    unsigned long long    anchor = 0;  // term at index base
     std::vector<LogEntry> entries;
 };
 
